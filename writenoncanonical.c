@@ -86,10 +86,6 @@ int main(int argc, char** argv)
     buf[5] = '\n';
      
     res = write(fd,buf,255);
-    for(int i=0;i<5;i++)
-    {
-    printf("%x",buf[i]);
-    }
     printf("%d bytes written\n", res);
 
 
