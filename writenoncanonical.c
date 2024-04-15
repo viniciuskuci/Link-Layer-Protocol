@@ -80,7 +80,7 @@ int main(int argc, char** argv)
     buf[3] = buf[1]^buf[2];
     buf[4] = 0x5c;
     buf[5] = 0;
-    res = write(fd,buf,255);
+    res = write(fd,buf,5);
     printf("%d bytes written\n", res);
 
     /*
@@ -93,7 +93,7 @@ int main(int argc, char** argv)
     printf("%d bytes recieved.\n", res);
 
     for (int i = 0; i<res; i++){
-        printf(":%x ", buf[i]);
+        printf("%x ", buf[i]);
     }
     printf("\n");
 
