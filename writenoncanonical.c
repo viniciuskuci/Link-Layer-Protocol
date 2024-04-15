@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -18,14 +19,14 @@ volatile int STOP=FALSE;
 
 int main(int argc, char** argv)
 {
-    int fd,res;
+    int fd,c, res;
     struct termios oldtio,newtio;
     char buf[255];
     int i, sum = 0, speed = 0;
 
     if ( (argc < 2) ||
-         ((strcmp("/dev/ttyS0", argv[1])!=0) &&
-          (strcmp("/dev/ttyS1", argv[1])!=0) )) {
+         ((strcmp("/dev/ttyS10", argv[1])!=0) &&
+          (strcmp("/dev/ttyS11", argv[1])!=0) )) {
         printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
         exit(1);
     }
@@ -72,28 +73,29 @@ int main(int argc, char** argv)
     }
 
     printf("New termios structure set\n");
-
-    unsigned char flag={0x5c};
-    unsigned char a={0x03};
-    unsigned char c={0x08};
-    unsigned char bcc1=a^c;
-
-    buf[0]=flag;
-    buf[1]=a;
-    buf[2]=c;
-    buf[3]=bcc1;
-    buf[4]=flag;
-    buf[5] = '\n';
-     
+    memset(buf,0,255);
+    buf[0] = 0x5c;
+    buf[1] = 0x03;
+    buf[2] = 0x08;
+    buf[3] = buf[1]^buf[2];
+    buf[4] = 0x5c;
+    buf[5] = 0;
     res = write(fd,buf,255);
     printf("%d bytes written\n", res);
-
 
     /*
     O ciclo FOR e as instruções seguintes devem ser alterados de modo a respeitar
     o indicado no guião
     */
 
+    sleep(1);
+    res = read(fd,buf,255);
+    printf("%d bytes recieved.\n", res);
+
+    for (int i = 0; i<res; i++){
+        printf(":%x ", buf[i]);
+    }
+    printf("\n");
 
     if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
         perror("tcsetattr");
