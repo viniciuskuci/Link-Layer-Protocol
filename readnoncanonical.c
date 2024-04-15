@@ -16,6 +16,21 @@
 
 volatile int STOP=FALSE;
 
+typedef enum {
+    START,
+    FLAG_RCV,
+    A_RCV,
+    C_RCV,
+    BCC_OK,
+    SM_STOP
+} State;
+
+typedef struct {
+    State state;
+} StateMachine;
+
+
+
 void reply(int fd, unsigned char *buf){
     printf("Sending response...\n");
     int replySize = strlen(buf);
@@ -31,8 +46,8 @@ int main(int argc, char** argv)
     char buf[255];
 
     if ( (argc < 2) ||
-         ((strcmp("/dev/ttyS0", argv[1])!=0) &&
-          (strcmp("/dev/ttyS5", argv[1])!=0) )) {
+         ((strcmp("/dev/ttyS10", argv[1])!=0) &&
+          (strcmp("/dev/ttyS11", argv[1])!=0) )) {
         printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
         exit(1);
     }
@@ -61,7 +76,7 @@ int main(int argc, char** argv)
     newtio.c_lflag = 0;
 
     newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-    newtio.c_cc[VMIN]     = 5;   /* blocking read until 5 chars received */
+    newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
 
     /*
     VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
@@ -78,33 +93,59 @@ int main(int argc, char** argv)
 
     printf("New termios structure set\n");
 
+    StateMachine sm;
+    sm.state = START;
+
     while (STOP==FALSE) {       /* loop for input */
-        res = read(fd,buf,255);   /* returns after 5 chars have been input */
-        printf("%d Bytes recieved. \n", res);
-        buf[res]=0;
-        for (int i =0;i<res;i++){
-            printf("0x%x ", buf[i]);
-        }
+        res = read(fd,buf,1);   /* returns after 5 chars have been input */
+        printf("%x ", buf[0]);
         printf("\n");   
-    
-        if(buf[0] == 0x5c){
-            
-            if ((buf[1]^buf[2])==buf[3]){
-                unsigned char reply_buf[255];
-                reply_buf[0] = 0x5c;
-                reply_buf[1] = 0x03;
-                reply_buf[2] = 0x06;
-                reply_buf[3] = reply_buf[1]^reply_buf[2];
-                reply_buf[4] = 0x5c;
-                reply_buf[5] = 0;
-                reply(fd, reply_buf);
-                break;
-            }
-            
 
+        switch(buf[0]){
+            case 0x5c:
+                if (sm.state == START){
+                    printf("Received %x and the machine is on state START\n", buf[0]);
+                    sm.state = FLAG_RCV;
+                    break;
+                }
+                else if (sm.state == BCC_OK){
+                    printf("BCC OK\n");
+                    sm.state = START;           /*provisório*/
+                    break;
+                }
+                break;
+            case 0x03:
+                if (sm.state == FLAG_RCV){
+                    printf("Received %x and the machine is on state FLAG_RCV\n",  buf[0]);
+                    sm.state = A_RCV;
+                }
+                break;
+            case 0x08:
+                if (sm.state == A_RCV){
+                    printf("Received %x and the machine is on state A_RCV\n", buf[0]);
+                    sm.state = C_RCV;
+                }
+                break;
+            default:
+                if (sm.state == C_RCV){
+                    if (buf[0] == (0x03^0x08)){
+                        printf("Received the BCC %x and the machine is on state C_RCV\n", buf[0]);
+                        sm.state = BCC_OK;
+                        break;
+                    }
+                    else{
+                        sm.state = START;
+                        break;
+                    } 
+                }
+                else{
+                    sm.state = START;
+                    break;
+                }
         }
 
-        if (buf[0]=='z') STOP=TRUE;
+
+        //if (buf[0]=='z') STOP=TRUE;
     }
 
 
