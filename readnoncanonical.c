@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "statemachine.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -16,25 +17,16 @@
 
 volatile int STOP=FALSE;
 
-typedef enum {
-    START,
-    FLAG_RCV,
-    A_RCV,
-    C_RCV,
-    BCC_OK,
-    SM_STOP
-} State;
 
-typedef struct {
-    State state;
-} StateMachine;
-
-
-
-void reply(int fd, unsigned char *buf){
-    printf("Sending response...\n");
-    int replySize = strlen(buf);
-    int res = write(fd, buf, replySize);
+void ack(int fd){
+    printf("Sending ack...\n");
+    char ack_buf[5];
+    ack_buf[0] = FLAG;
+    ack_buf[1] = ADDR_TRANSMITTER;
+    ack_buf[2] = UA;
+    ack_buf[3] = ADDR_TRANSMITTER^UA;
+    ack_buf[4] = FLAG;
+    int res = write(fd, ack_buf, 5);
     printf("Sent %d bytes\n", res);
     return;
 }
@@ -97,39 +89,46 @@ int main(int argc, char** argv)
     sm.state = START;
 
     while (STOP==FALSE) {       /* loop for input */
-        res = read(fd,buf,1);   /* returns after 5 chars have been input */
-        printf("%x ", buf[0]);
-        printf("\n");   
-
+        res = read(fd,buf,1);   /* returns after 5 chars have been input */  
+        if (res == -1){
+            perror("read");
+            exit(-1);
+        }
         switch(buf[0]){
-            case 0x5c:
+            case FLAG:
                 if (sm.state == START){
-                    printf("Received %x and the machine is on state START\n", buf[0]);
-                    sm.state = FLAG_RCV;
+                    sm.state = FLAG_RCV;    //se a maquina estiver no estado START e receber uma flag, passa para o estado FLAG_RCV
                     break;
                 }
                 else if (sm.state == BCC_OK){
-                    printf("BCC OK\n");
-                    sm.state = START;           /*provisório*/
+                    if (sm.set == TRUE){
+                        ack(fd);     //se a maquina estiver no estado SM_STOP e o set for TRUE, envia a resposta e volta ao estado START
+                        sm.set = FALSE;
+                        sm.state = START;
+                        break;
+                    } 
+                    sm.state = SM_STOP;     //se a maquina estiver no estado BCC_OK e receber uma flag, passa para o estado SM_STOP   
                     break;
                 }
+                else if (sm.state == SM_STOP){
+                    sm.state = START;       //se a maquina estiver no estado SM_STOP e receber uma flag, passa para o estado START
+                }
                 break;
-            case 0x03:
+            case ADDR_TRANSMITTER:
                 if (sm.state == FLAG_RCV){
-                    printf("Received %x and the machine is on state FLAG_RCV\n",  buf[0]);
                     sm.state = A_RCV;
                 }
                 break;
-            case 0x08:
+            case SET:
                 if (sm.state == A_RCV){
-                    printf("Received %x and the machine is on state A_RCV\n", buf[0]);
+                    sm.set = TRUE;
                     sm.state = C_RCV;
                 }
                 break;
             default:
                 if (sm.state == C_RCV){
-                    if (buf[0] == (0x03^0x08)){
-                        printf("Received the BCC %x and the machine is on state C_RCV\n", buf[0]);
+                    if (buf[0] == (ADDR_TRANSMITTER^SET)){
+                        printf("BCC OK\n");
                         sm.state = BCC_OK;
                         break;
                     }
@@ -138,8 +137,12 @@ int main(int argc, char** argv)
                         break;
                     } 
                 }
+                else if (sm.state == SM_STOP){
+                    printf("%x ", buf[0]);         //se a maquina estiver no estado SM_STOP, imprime o que recebeu
+                    break;
+                }                
                 else{
-                    sm.state = START;
+                    sm.state = START;       //reset da maquina de estados. acontece sempre que recebe algo que nao espera
                     break;
                 }
         }

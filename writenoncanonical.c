@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "statemachine.h"
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -74,11 +75,11 @@ int main(int argc, char** argv)
 
     printf("New termios structure set\n");
     memset(buf,0,255);
-    buf[0] = 0x5c;
-    buf[1] = 0x03;
-    buf[2] = 0x08;
-    buf[3] = buf[1]^buf[2];
-    buf[4] = 0x5c;
+    buf[0] = FLAG;
+    buf[1] = ADDR_TRANSMITTER;
+    buf[2] = SET;
+    buf[3] = ADDR_TRANSMITTER ^ SET;
+    buf[4] = FLAG;
     buf[5] = 0;
     res = write(fd,buf,5);
     printf("%d bytes written\n", res);
