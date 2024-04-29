@@ -1,5 +1,3 @@
-/*Non-Canonical Input Processing*/
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -110,7 +108,7 @@ case 0x01:
            else { //erro na sequencia
                   a=0;
                   f=0;
-                  }
+                }
 break;
 
 case 0x06:
@@ -161,12 +159,15 @@ case 0x5c:
  if (f==0 && a==0) {
     f=1;
     printf("%x\n",buf[0]);
+
     }
 // se ainda nao tiver sido lida a flag ou qualquer outro campo e a flag for identificada, ativar o campo f.
- else if (a==3) {
+ else if (b=1) {
+
     printf("%x\n",buf[0]);
     STOP=TRUE;
     printf("ack received!\n");
+
     } //se for identificada a flag e tiverem sido verificados todos os outros campos, termina o ciclo.
 
  else { //se for registada uma flag no lugar errado da sequencia, recomeça
@@ -191,7 +192,7 @@ case 0x06:
             a=2;
             printf("%x\n",buf[0]);
             } // sempre que se verifique o nr esperado da sequencia, a é incremnetado.
-
+         
          else {
             a=0;
             f=0;
@@ -211,16 +212,22 @@ case 0x07:
 break;
 
 case d:
-llopen();
-while(llread()>0); // ciclo de leitura, falta acabar a parametrizacao da funcao
-d=1;
+     if(a==3) {
+        llopen();
+        while(llread()>0); // ciclo de leitura, falta acabar a parametrizacao da funcao
+        d=1;
+        else{
+            a=0;
+            f=0;
+        }
+     }
 break;
 
 case bcc2:
-     if(bcc2==TRUE) b=1;
+     if(d==1) b=1;
      else{
         printf("Lost data, aasking to retransmmit...\n");
-        d=0;
+        d=0; //so e preciso retransmitir os dados
         //enviar o erro ao transmiter de alguma forma...
         b=0;
      }
