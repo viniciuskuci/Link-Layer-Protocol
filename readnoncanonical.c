@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "statemachine.h"
+#include "reciever_sm.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -20,12 +20,7 @@ volatile int STOP=FALSE;
 
 void ack(int fd){
     printf("Sending ack...\n");
-    char ack_buf[5];
-    ack_buf[0] = FLAG;
-    ack_buf[1] = ADDR_TRANSMITTER;
-    ack_buf[2] = UA;
-    ack_buf[3] = ADDR_TRANSMITTER^UA;
-    ack_buf[4] = FLAG;
+    char ack_buf = (FLAG, ADDR_TRANSMITTER, UA, ADDR_TRANSMITTER^UA, FLAG);
     int res = write(fd, ack_buf, 5);
     printf("Sent %d bytes\n", res);
     return;
@@ -94,60 +89,15 @@ int main(int argc, char** argv)
             perror("read");
             exit(-1);
         }
-        switch(buf[0]){
-            case FLAG:
-                if (sm.state == START){
-                    sm.state = FLAG_RCV;    //se a maquina estiver no estado START e receber uma flag, passa para o estado FLAG_RCV
-                    break;
-                }
-                else if (sm.state == BCC_OK){
-                    if (sm.set == TRUE){
-                        ack(fd);     //se a maquina estiver no estado SM_STOP e o set for TRUE, envia a resposta e volta ao estado START
-                        sm.set = FALSE;
-                        sm.state = START;
-                        break;
-                    } 
-                    sm.state = SM_STOP;     //se a maquina estiver no estado BCC_OK e receber uma flag, passa para o estado SM_STOP   
-                    break;
-                }
-                else if (sm.state == SM_STOP){
-                    sm.state = START;       //se a maquina estiver no estado SM_STOP e receber uma flag, passa para o estado START
-                }
-                break;
-            case ADDR_TRANSMITTER:
-                if (sm.state == FLAG_RCV){
-                    sm.state = A_RCV;
-                }
-                break;
-            case SET:
-                if (sm.state == A_RCV){
-                    sm.set = TRUE;
-                    sm.state = C_RCV;
-                }
-                break;
-            default:
-                if (sm.state == C_RCV){
-                    if (buf[0] == (ADDR_TRANSMITTER^SET)){
-                        printf("BCC OK\n");
-                        sm.state = BCC_OK;
-                        break;
-                    }
-                    else{
-                        sm.state = START;
-                        break;
-                    } 
-                }
-                else if (sm.state == SM_STOP){
-                    printf("%x ", buf[0]);         //se a maquina estiver no estado SM_STOP, imprime o que recebeu
-                    break;
-                }                
-                else{
-                    sm.state = START;       //reset da maquina de estados. acontece sempre que recebe algo que nao espera
-                    break;
-                }
+        int sm_res;
+        sm_res = UpdateState(buf[0], &sm);
+        if(sm_res == -2) printf("Wrong BCC1\n");
+        if(sm_res == -1) printf("Garbage Recieved\n");
+        if(sm_res == 0) printf("Transitioned state\n");
+        if(sm_res == 1) {
+            printf("Header OK, can send the ack\n");
+            ack(fd);
         }
-
-
         //if (buf[0]=='z') STOP=TRUE;
     }
 
