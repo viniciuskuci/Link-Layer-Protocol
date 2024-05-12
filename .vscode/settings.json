@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "reciever_sm.h": "c"
+        "reciever_sm.h": "c",
+        "sender_sm.h": "c"
     }
 }

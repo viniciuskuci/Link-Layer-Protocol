@@ -8,41 +8,26 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "reciever_sm.h"
+#include "sender_sm.h"
+#include <stdbool.h>
 
 #define BAUDRATE B38400
+#define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
-#define DEBUG 1
+#define DEBUG true
 
 volatile int STOP=FALSE;
-
-
-void ack(int fd){
-    printf("Sending ack...\n");
-    char ack_buf[5];
-    ack_buf[0] = FLAG;
-    ack_buf[1] = ADDR_TRANSMITTER;
-    ack_buf[2] = UA;
-    ack_buf[3] = ADDR_TRANSMITTER^UA;
-    ack_buf[4] = FLAG;
-    int res = write(fd, ack_buf, 5);
-    if (res == -1){
-        perror("write");
-        exit(-1);
-    }
-    printf("Sent %d bytes\n", res);
-    return;
-}
 
 int main(int argc, char** argv)
 {
     int fd,c, res;
     struct termios oldtio,newtio;
-    unsigned char buf[255];
+    char buf[255];
+    int i, sum = 0, speed = 0;
 
-    if ( (argc < 2) ||
+    if ( (argc < 3) ||
          ((strcmp("/dev/ttyS10", argv[1])!=0) &&
           (strcmp("/dev/ttyS11", argv[1])!=0) )) {
         printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
@@ -59,7 +44,8 @@ int main(int argc, char** argv)
     fd = open(argv[1], O_RDWR | O_NOCTTY );
     if (fd < 0) { perror(argv[1]); exit(-1); }
 
-    if (tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
+
+    if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
         perror("tcgetattr");
         exit(-1);
     }
@@ -75,6 +61,8 @@ int main(int argc, char** argv)
     newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
     newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
 
+
+
     /*
     VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
     leitura do(s) próximo(s) caracter(es)
@@ -89,31 +77,57 @@ int main(int argc, char** argv)
     }
 
     printf("New termios structure set\n");
+    memset(buf,0,255);
+   
 
     StateMachine sm = NewStateMachine();
+    if (Set(fd, &sm, DEBUG) == -1){
+        perror("Set"); //usar timer aqui?
+        exit(-1);
+    }
+    sleep(1);
 
-    while (STOP==FALSE) {       /* loop for input */
-        res = read(fd,buf,1);   /* returns after 5 chars have been input */  
-        if (res == -1){
-            perror("read");
-            exit(-1);
+    //pegar o input do usuario:
+    char* input = argv[2];
+    printf("Input: %s\n", input);
+    buf[0] = FLAG;
+    buf[1] = ADDR_TRANSMITTER;
+    buf[2] = I0;
+    buf[3] = ADDR_TRANSMITTER^buf[2];
+    buf[4] = FLAG;
+    for (int i = 0; i < strlen(input); i++){
+        buf[i+5] = input[i];
+    }
+
+    unsigned char bcc2;
+    for (int i = 0; i < strlen(input); i++){
+        bcc2 ^= input[i];
+    }
+
+    buf[strlen(input)+5] = bcc2;
+    buf[strlen(input)+6] = FLAG;
+
+    while(read(fd,buf,1) == 1){
+        printf("Reading\n");
+        if (UpdateState(buf[0], &sm, DEBUG) == 1){
+            write(fd, buf, strlen(input)+7);
+            break;
         }
-        int sm_res;
-        sm_res = UpdateState(buf[0], &sm, fd, DEBUG);
-        if(sm_res == 1) {
-            printf("Header OK, can send the ack\n");
-            //ack(fd);
-        }
-        //if (buf[0]=='z') STOP=TRUE;
     }
 
 
+    
+   
+    
+    
 
-    /*
-    O ciclo WHILE deve ser alterado de modo a respeitar o indicado no guião
-    */
     sleep(1);
-    tcsetattr(fd,TCSANOW,&oldtio);
+    if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
+        perror("tcsetattr");
+        exit(-1);
+    }
+
+
     close(fd);
     return 0;
 }

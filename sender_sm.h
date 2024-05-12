@@ -22,15 +22,13 @@ typedef enum {
     A_RCV,
     C_RCV,
     BCC_OK,
-    SM_STOP,
-    DATA_TRANSFER
+    SM_STOP
 } State;
 
 typedef enum {
-    SUPERVISION,
     UA_frame,
-    INFORMATION,
-    DISC_frame
+    DISC_frame,
+    RR_REJ_frame,
 } ExpectedFrame;
 
 
@@ -46,10 +44,9 @@ typedef enum {
 typedef struct {
     State state;
     ExpectedFrame expected_frame;
-    unsigned char expected_I_flag;
-    unsigned char last_byte;
-    unsigned char bcc2;
-    int bytes_downloaded;
+    unsigned char expected_RR_flag;
+    unsigned char expected_REJ_flag;
+    bool packet_rejected;
 } StateMachine;
 
 
@@ -70,17 +67,27 @@ StateMachine NewStateMachine();
     *          0 if the state machine updated its state successfuly.
     *          1 if the state machine is ready to send UA.           
  */
-int UpdateState(unsigned char byte, StateMachine* sm, int fd, bool DEBUG);
+int UpdateState(unsigned char byte, StateMachine* sm, bool DEBUG);
 
 
 /*
- *  @brief Sends an positive or negative ACK frame to the transmitter. 
+ *  @brief Starts the communication to reciever sending a SET frame. 
     *  @param  fd: file descriptor of the serial port
     *  @param  *sm: reference to the state machine
-    *  @param  control_flag: flag to send RR, REJ, UA or DISC
-    *  @param  fd: file descriptor for sending the responses
     *  @param  DEBUG: flag to print debug messages
-    *  @return 0 if the ACK was sent successfuly.
+    *  @return -1 if the state machine could not be started.
+    *          0 if the state machine was started successfuly.
+ */
+int Set(int fd, StateMachine* sm, bool DEBUG);
+
+
+/*
+ *  @brief Sends a response according to the state of the state machine. 
+    *  @param  fd: file descriptor of the serial port
+    *  @param  *sm: reference to the state machine
+    *  @param  control_flag: control flag of the response
+    *  @param  DEBUG: flag to print debug messages
+    *  @return -1 if the response could not be sent.
+    *          0 if the response was sent successfuly.
  */
 int SendResponse(int fd, StateMachine *sm, unsigned char control_flag, bool DEBUG);
-
