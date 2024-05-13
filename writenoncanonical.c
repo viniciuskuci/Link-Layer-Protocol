@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include "sender_sm.h"
 #include <stdbool.h>
+#include "byte_stuff.h"
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -88,8 +89,18 @@ int main(int argc, char** argv)
     sleep(1);
 
     //pegar o input do usuario:
-    char* input = argv[2];
+    char *input = (char*)malloc(strlen(argv[2])+1);
+    strcpy(input, argv[2]);
     printf("Input: %s\n", input);
+
+    unsigned char bcc2;
+    for (int i = 0; i < strlen(input); i++){
+        bcc2 ^= input[i];
+    }
+    byte_stuff(&input);
+    printf("Input after byte stuffing: %s\n", input);
+    byte_destuff(&input);
+    printf("Input after byte destuffing: %s\n", input);
     buf[0] = FLAG;
     buf[1] = ADDR_TRANSMITTER;
     buf[2] = I0;
@@ -97,11 +108,6 @@ int main(int argc, char** argv)
     buf[4] = FLAG;
     for (int i = 0; i < strlen(input); i++){
         buf[i+5] = input[i];
-    }
-
-    unsigned char bcc2;
-    for (int i = 0; i < strlen(input); i++){
-        bcc2 ^= input[i];
     }
 
     buf[strlen(input)+5] = bcc2;

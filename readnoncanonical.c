@@ -19,23 +19,6 @@
 volatile int STOP=FALSE;
 
 
-void ack(int fd){
-    printf("Sending ack...\n");
-    char ack_buf[5];
-    ack_buf[0] = FLAG;
-    ack_buf[1] = ADDR_TRANSMITTER;
-    ack_buf[2] = UA;
-    ack_buf[3] = ADDR_TRANSMITTER^UA;
-    ack_buf[4] = FLAG;
-    int res = write(fd, ack_buf, 5);
-    if (res == -1){
-        perror("write");
-        exit(-1);
-    }
-    printf("Sent %d bytes\n", res);
-    return;
-}
-
 int main(int argc, char** argv)
 {
     int fd,c, res;
