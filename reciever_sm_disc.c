@@ -17,14 +17,6 @@ StateMachine NewStateMachine(){
     return sm;
 }
 
-StateMachine DiscStateMachine(){
-
-    StateMachine sm;
-    sm.state = START;
-    sm.expected_frame = DISC_frame;
-    sm. packet_rejected = false;
-    return sm;
-}
 
 int SendResponse(int fd, StateMachine* sm, unsigned char control_flag, bool DEBUG){
     
@@ -230,7 +222,8 @@ int UpdateState(unsigned char byte, StateMachine* sm, int fd, bool DEBUG){
                 {   
                     SendResponse(fd, sm, (sm->expected_I_flag == I0) ? RR1 : RR0, DEBUG);
                     sm->expected_I_flag = (sm->expected_I_flag == I0) ? I1 : I0;
-                    sm->state = START;
+                    sm->state = START; 
+                    sm->expected_frame=DISC_frame; // acrescentado para seguir para receber disc apos a trnasferencia dos dados
                     if (DEBUG) printf("-> Correctly recieved %d bytes. Transitioned from DATA_TRANSFER to START\n", sm->bytes_downloaded);
                     return 0;
                 }
@@ -248,130 +241,184 @@ int UpdateState(unsigned char byte, StateMachine* sm, int fd, bool DEBUG){
                 if (DEBUG) printf("X Garbage recieved (%x). Transitioned to START\n", byte);
                 return -1;
         }
+    } 
+
+    else if(sm->expected_frame==DISC_frame){//se ja tiver recebido todos os dados, passa para esperar pelo disc
+
+        if (DEBUG) printf("DISC FRAME: %x ", byte);
+
+            switch (sm->state){
+                case START:
+                if (byte == FLAG){
+                    sm->state = FLAG_RCV;
+                    if (DEBUG) printf("-> Transitioned from START to FLAG_RCV\n");
+                    return 0;
+                    }
+                    else{
+                        if (DEBUG) printf("X Garbage recieved (%x). Still on START state\n", byte);
+                        return -1;
+                        }
+                break;
+
+                case FLAG_RCV:
+                if (byte == ADDR_TRANSMITTER){
+                    sm->state = A_RCV;
+                    if (DEBUG) printf("-> Transitioned from FLAG_RCV to A_RCV\n");
+                    return 0;
+                    }
+                else if (byte == FLAG){
+                    if (DEBUG) printf("Garbage recieved (%x). Still on FLAG_RCV state\n", byte);
+                    return 0;
+                    }
+                else{
+                    sm->state = START;
+                    if (DEBUG) printf("X Garbage recieved (%x). Transitioned from FLAG_RCV to START\n", byte);
+                    return -1;
+                    }
+
+                case A_RCV:
+                if(byte == FLAG){ // se receber uma flag volta para o rcv flag e nao para start 
+                    sm->state = FLAG;
+                    if (DEBUG) printf("Garbage recieved(%x). Transitioned from A_RCV to FLAG_RCV\n", byte);
+                    return 0;
+                    }
+                if (sm->expected_frame == DISC_frame){
+                    if (byte == DISC){
+                        sm->state = C_RCV;
+                        if (DEBUG) printf("-> Transitioned from A_RCV to C_RCV\n");
+                        return 0;
+                        }
+                    else{
+                        sm->state = START;
+                        if (DEBUG) printf("X Garbage recieved (%x). UA frame expected. Transitioned from A_RCV to START\n", byte);
+                        return -1;
+                        }
+                    }
+
+                case C_RCV:
+                if(byte == FLAG){ // se receber uma flag volta para o rcv flag e nao para start 
+                    sm->state = FLAG;
+                    if (DEBUG) printf("Garbage received (%x). Transitioned from C_RCV to FLAG_RCV\n", byte);
+                    return 0;
+                    }
+                if (sm->expected_frame == DISC_frame){
+                    if (byte == (DISC^ADDR_TRANSMITTER)){
+                        sm->state = BCC_OK;
+                        if (DEBUG) printf("-> Transitioned from C_RCV to BCC_OK\n");
+                        return 0;
+                        }
+                    else{
+                        sm->state = START;
+                        if (DEBUG) printf("X Garbage recieved (%x). Transitioned from C_RCV to START\n", byte);
+                        return -1;
+                        }
+                    }
+           
+                case BCC_OK:
+                if (byte == FLAG)
+                {   
+                    sm->state = START;
+                    sm->expected_frame = UA_frame;
+                    if (DEBUG) printf("-> DISC_frame complete! Sending DISC resposnse...\n");
+                    SendResponse(fd,sm,DISC,true); // envia disc de resposta
+                    if (DEBUG) printf("-> DISC resposnse sent! Transitioned from BCC_OK to START\n");
+                    return 1;   
+                    }
+
+                else{
+                    sm->state = START;
+                    if (DEBUG) printf("X Garbage recieved (%x). Transitioned from BCC_OK to START\n", byte);
+                    return -1;
+                    }
+        }
+    }
+
+    else if(sm->expected_frame==UA_frame){//recebe o UA final e termina o programa 
+
+        if (DEBUG) printf("UA FRAME: %x ", byte);
+
+            switch (sm->state){
+                case START:
+                if (byte == FLAG){
+                    sm->state = FLAG_RCV;
+                    if (DEBUG) printf("-> Transitioned from START to FLAG_RCV\n");
+                    return 0;
+                    }
+                    else{
+                        if (DEBUG) printf("X Garbage recieved (%x). Still on START state\n", byte);
+                        return -1;
+                        }
+                break;
+
+                case FLAG_RCV:
+                if (byte == ADDR_TRANSMITTER){
+                    sm->state = A_RCV;
+                    if (DEBUG) printf("-> Transitioned from FLAG_RCV to A_RCV\n");
+                    return 0;
+                    }
+                else if (byte == FLAG){
+                    if (DEBUG) printf("Garbage recieved (%x). Still on FLAG_RCV state\n", byte);
+                    return 0;
+                    }
+                else{
+                    sm->state = START;
+                    if (DEBUG) printf("X Garbage recieved (%x). Transitioned from FLAG_RCV to START\n", byte);
+                    return -1;
+                    }
+
+                case A_RCV:
+                if(byte == FLAG){ // se receber uma flag volta para o rcv flag e nao para start 
+                    sm->state = FLAG;
+                    if (DEBUG) printf("Garbage recieved(%x). Transitioned from A_RCV to FLAG_RCV\n", byte);
+                    return 0;
+                    }
+                if (sm->expected_frame == UA_frame){
+                    if (byte == UA){
+                        sm->state = C_RCV;
+                        if (DEBUG) printf("-> Transitioned from A_RCV to C_RCV\n");
+                        return 0;
+                        }
+                    else{
+                        sm->state = START;
+                        if (DEBUG) printf("X Garbage recieved (%x). UA frame expected. Transitioned from A_RCV to START\n", byte);
+                        return -1;
+                        }
+                    }
+
+                case C_RCV:
+                if(byte == FLAG){ // se receber uma flag volta para o rcv flag e nao para start 
+                    sm->state = FLAG;
+                    if (DEBUG) printf("Garbage received (%x). Transitioned from C_RCV to FLAG_RCV\n", byte);
+                    return 0;
+                    }
+                if (sm->expected_frame == UA_frame){
+                    if (byte == (UA^ADDR_TRANSMITTER)){
+                        sm->state = BCC_OK;
+                        if (DEBUG) printf("-> Transitioned from C_RCV to BCC_OK\n");
+                        return 0;
+                        }
+                    else{
+                        sm->state = START;
+                        if (DEBUG) printf("X Garbage recieved (%x). Transitioned from C_RCV to START\n", byte);
+                        return -1;
+                        }
+                    }
+           
+                case BCC_OK:
+                if (byte == FLAG)
+                {   
+                    sm->state = START;
+                    if (DEBUG) printf("-> UA_frame received! Terminating connection...\n");
+                    STOP=TRUE; // para terminar o ciclo no main?
+                    return 1;   
+                    }
+
+                else{
+                    sm->state = START;
+                    if (DEBUG) printf("X Garbage recieved (%x). Transitioned from BCC_OK to START\n", byte);
+                    return -1;
+                    }
+        }
     }       
 
-}
-
-int Send_Termination(int fd, bool DEBUG){
-
-    unsigned char disc[5];
-    disc[0] = FLAG;
-    disc[1] = ADDR_TRANSMITTER;
-    disc[2] = DISC;
-    disc[3] = ADDR_TRANSMITTER^DISC;
-    disc[4] = FLAG;
-    if (DEBUG) printf("DISC frame created %x %x %x %x %x\n", disc[0], disc[1], disc[2], disc[3], disc[4]);
-    if (write(fd, disc, 5) == -1){
-        perror("write");
-        return -1;
-    }
-    return 0;
-}
-
-int ShortUpdateState(unsigned char byte, StateMachine* sm, bool DEBUG){
-
-    switch (sm->state)
-    {
-    
-        case START:
-            if (byte == FLAG){
-                sm->state = FLAG_RCV;
-                if (DEBUG) printf("-> Transitioned from START to FLAG_RCV\n");
-                return 0;
-            }
-            else{
-                if (DEBUG) printf("X Garbage recieved (%x). Still on START state\n", byte);
-                return -1;
-            }
-        break;
-
-         case FLAG_RCV:
-            if (byte == ADDR_TRANSMITTER){
-                sm->state = A_RCV;
-                if (DEBUG) printf("-> Transitioned from FLAG_RCV to A_RCV\n");
-                return 0;
-            }
-            else if (byte == FLAG){
-                if (DEBUG) printf("Garbage recieved (%x). Still on FLAG_RCV state\n", byte);
-                return 0;
-            }
-            else{
-                sm->state = START;
-                if (DEBUG) printf("X Garbage recieved (%x). Transitioned from FLAG_RCV to START\n", byte);
-                return -1;
-            }
-
-          case A_RCV:
-
-            if(byte == FLAG){ // se receber uma flag volta para o rcv flag e nao para start 
-                sm->state = FLAG;
-                if (DEBUG) printf("Garbage recieved(%x). Transitioned from A_RCV to FLAG_RCV\n", byte);
-                return 0;
-            }
-            if (sm->expected_frame == DISC_frame){
-                if (byte == DISC){
-                    sm->state = C_RCV;
-                    if (DEBUG) printf("-> Transitioned from A_RCV to C_RCV\n");
-                    return 0;
-                }
-                else{
-                    sm->state = START;
-                    if (DEBUG) printf("X Garbage recieved (%x). UA frame expected. Transitioned from A_RCV to START\n", byte);
-                    return -1;
-                }
-            }
-
-             case C_RCV:
-              if(byte == FLAG){ // se receber uma flag volta para o rcv flag e nao para start 
-                sm->state = FLAG;
-                if (DEBUG) printf("Garbage received (%x). Transitioned from C_RCV to FLAG_RCV\n", byte);
-                return 0;
-              }
-              if (sm->expected_frame == DISC_frame){
-                if (byte == (DISC^ADDR_TRANSMITTER)){
-                    sm->state = BCC_OK;
-                    if (DEBUG) printf("-> Transitioned from C_RCV to BCC_OK\n");
-                    return 0;
-                }
-                else{
-                    sm->state = START;
-                    if (DEBUG) printf("X Garbage recieved (%x). Transitioned from C_RCV to START\n", byte);
-                    return -1;
-                }
-            }
-           
-      case BCC_OK:
-            if (byte == FLAG)
-            {   
-                if (sm->packet_rejected)
-                {
-                    //retransmitir aqui
-                    sm->packet_rejected = false;
-                    sm->state = START;
-                    if (DEBUG) printf("-> Retransmited packet. Transitioned from BCC_OK to START\n");
-                    return 1;
-                }
-                else if (sm->expected_frame == UA_frame){
-                    sm->expected_frame = RR_REJ_frame;
-                    sm->state = START;
-                    if (DEBUG) printf("-> UA recieved. Transitioned from BCC_OK to START\n");
-                    return 1;
-                }
-                else
-                {
-                    sm->expected_REJ_flag = (sm->expected_REJ_flag == REJ0) ? REJ1 : REJ0;
-                    sm->expected_RR_flag = (sm->expected_RR_flag == RR0) ? RR1 : RR0;
-                    sm->state = START;
-                    if (DEBUG) printf("-> ACK ok! Transitioned from BCC_OK to START\n");
-                    return 1;
-                }   
-            }
-
-            else
-            {
-                sm->state = START;
-                if (DEBUG) printf("X Garbage recieved (%x). Transitioned from BCC_OK to START\n", byte);
-                return -1;
-            }
-    }
 }
