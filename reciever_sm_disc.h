@@ -84,23 +84,3 @@ int UpdateState(unsigned char byte, StateMachine* sm, int fd, bool DEBUG);
  */
 int SendResponse(int fd, StateMachine *sm, unsigned char control_flag, bool DEBUG);
 
-/*
- *  @brief Ends the communication to reciever sending a DISC frame. 
-    *  @param  fd: file descriptor of the serial port
-    *  @param  DEBUG: flag to print debug messages
-    *  @return -1 if the request for termination was not sent.
-    *          0 if the request was sent successfuly.
- */
-int Send_Termination(int fd, bool DEBUG);
-
-/*
- *  @brief Updates the state of the disc state machine according to the recieved byte. 
-    *  @param  byte: recieved byte
-    *  @param  *sm: reference to the state machine
-    *  @param  DEBUG: flag to print debug messages
-    *  @return -2 if a wrong bcc is recieved.
-    *          -1 if the recieved byte is garbage.
-    *          0 if the state machine updated its state successfuly.
-    *          1 if the state machine is ready to send UA.           
- */
-int ShortUpdateState(unsigned char byte, StateMachine* sm, bool DEBUG);
