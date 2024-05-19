@@ -1,4 +1,4 @@
-#include "reciever_sm_disc.h"
+#include "reciever_sm.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -109,6 +109,7 @@ int UpdateState(unsigned char byte, StateMachine* sm, int fd, bool DEBUG){
                     sm->expected_frame = INFORMATION;
                     sm->state = START;
                     if (DEBUG) printf("-> SET frame correctly recieved. Transitioned from BCC_OK to START\n");
+                    STOP=TRUE;
                     SendResponse(fd, sm, UA, true); //incluir disc.
                     return 0;
                 }

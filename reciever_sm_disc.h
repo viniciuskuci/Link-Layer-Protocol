@@ -84,3 +84,4 @@ int UpdateState(unsigned char byte, StateMachine* sm, int fd, bool DEBUG);
  */
 int SendResponse(int fd, StateMachine *sm, unsigned char control_flag, bool DEBUG);
 
+

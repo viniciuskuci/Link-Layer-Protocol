@@ -59,13 +59,28 @@ int llopen(linklayer connectionParameters){
         
         while(read(fd,buf,1)==1){
 
-           if (UpdateState(buf[0], &sm, bool DEBUG)==1) break; // recebeu ua, sai do ciclo e retorna 1
+           if (UpdateState_s(buf[0], &sm, bool DEBUG)==1) break; // recebeu ua, sai do ciclo e retorna 1
 
         }
     }
 
-    else if(connectionParameters->role==1){
-        //receiver
+    else if(connectionParameters->role==1){ //receiver
+
+        StateMachine sm = NewStateMachine();
+        while (STOP==FALSE) {       /* loop for input */
+        res = read(fd,buf,1);   /* returns after 5 chars have been input */  
+        if (res == -1){
+            perror("read");
+            exit(-1);
+        }
+        int sm_res;
+        sm_res = UpdateState(buf[0], &sm, fd, DEBUG);
+        if(sm_res == 1) {
+            printf("Header OK, can send the ack\n");
+        }
+        
+    }
+
     }
     else{
         printf("ERROR:Role not specified!\n");
@@ -77,11 +92,22 @@ return 1;
 }
 
 llwrite(char* buf, int bufSize){
-return 1;
+
+    StateMachine_s sm = NewStateMachine();
+    sm->expected_frame = RR_REJ_frame;
+    UpdateState_s(buf[0], &sm, bool DEBUG);
+    return 1;
 }
 
-llread(){
+llread(char* packet){
+
+    StateMachine sm = NewStateMachine();
+    sm->expected_frame=INFORMATION;
+    int sm_res;
+    sm_res = UpdateState(buf[0], &sm, fd, DEBUG);
+    if(sm_res != 1) return -1;
     return 1;
+
 }
 
 llclose(linkLayer connectionParameters, int showStatistics){
@@ -109,10 +135,27 @@ llclose(linkLayer connectionParameters, int showStatistics){
     }
 
     else if(connectionParameters->role==1){ //colocar disc receiver
+         
+        STOP=FALSE;
+        StateMachine sm = NewStateMachine();
+        sm->expected_frame=DISC_frame;
+        while (STOP==FALSE) {       /* loop for input */
+        res = read(fd,buf,1);   /* returns after 5 chars have been input */  
+        if (res == -1){
+            perror("read");
+            exit(-1);
+        }
+        int sm_res;
+        sm_res = UpdateState(buf[0], &sm, fd, DEBUG);
 
+    }
     }
 
     else return -1;
+
+    if(showStatistics==TRUE){
+        printf("%d\n",connectionParameters->numTries);// estatistica?
+    }
 
     if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
         perror("tcsetattr");

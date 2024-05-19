@@ -47,15 +47,21 @@ typedef struct {
     unsigned char expected_RR_flag;
     unsigned char expected_REJ_flag;
     bool packet_rejected;
-} StateMachine;
+} StateMachine_s;
 
 
 /*
 *  @brief Creates a new state machine and initializes it.  
     *  @return A new state machine.  
 */
-StateMachine NewStateMachine();
+StateMachine_s NewStateMachine();
 
+
+/*
+*  @brief Creates a new disc state machine and initializes it.  
+    *  @return A new disc state machine.  
+*/
+StateMachine_s DiscStateMachine();
 
 /*
  *  @brief Updates the state of the state machine according to the recieved byte. 
@@ -67,7 +73,7 @@ StateMachine NewStateMachine();
     *          0 if the state machine updated its state successfuly.
     *          1 if the state machine is ready to send UA.           
  */
-int UpdateState(unsigned char byte, StateMachine* sm, bool DEBUG);
+int UpdateState_s(unsigned char byte, StateMachine_s* sm, bool DEBUG);
 
 
 /*
@@ -78,7 +84,7 @@ int UpdateState(unsigned char byte, StateMachine* sm, bool DEBUG);
     *  @return -1 if the state machine could not be started.
     *          0 if the state machine was started successfuly.
  */
-int Set(int fd, StateMachine* sm, bool DEBUG);
+int Set(int fd, StateMachine_s* sm, bool DEBUG);
 
 
 
@@ -91,7 +97,7 @@ int Set(int fd, StateMachine* sm, bool DEBUG);
     *  @return -1 if the response could not be sent.
     *          0 if the response was sent successfuly.
  */
-int SendResponse(int fd, StateMachine *sm, unsigned char control_flag, bool DEBUG);
+int SendResponse(int fd, StateMachine_s *sm, unsigned char control_flag, bool DEBUG);
 
 /*
  *  @brief Ends the communication to reciever sending a DISC frame. 
@@ -112,7 +118,7 @@ int Send_Termination(int fd, bool DEBUG);
     *          0 if the state machine updated its state successfuly.
     *          1 if the state machine is ready to send UA.           
  */
-int ShortUpdateState(unsigned char byte, StateMachine* sm, bool DEBUG);
+int ShortUpdateState(unsigned char byte, StateMachine_s* sm, bool DEBUG);
 
 /*
  *  @brief Ends the communication to reciever sending a UA frame. 

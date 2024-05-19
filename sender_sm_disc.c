@@ -5,8 +5,8 @@
 #include <unistd.h>
 
 
-StateMachine NewStateMachine(){
-    StateMachine sm;
+StateMachine_s NewStateMachine(){
+    StateMachine_s sm;
     sm.state = START;
     sm.expected_RR_flag = RR1;
     sm.expected_REJ_flag = REJ1;
@@ -15,18 +15,16 @@ StateMachine NewStateMachine(){
     return sm;
 }
 
-StateMachine DiscStateMachine(){
+StateMachine_s DiscStateMachine(){
 
-    StateMachine sm;
+    StateMachine_s sm;
     sm.state = START;
     sm.expected_frame = DISC_frame;
-    sm.expected_RR_flag = NULL;
-    sm.expected_REJ_flag = NULL;
     sm. packet_rejected = false;
     return sm;
 }
 
-int Set(int fd, StateMachine *sm, bool DEBUG){ //sm nao é utilizado
+int Set(int fd, bool DEBUG){ //sm nao é utilizado, entao foi retirado
     unsigned char set[5];
     set[0] = FLAG;
     set[1] = ADDR_TRANSMITTER;
@@ -40,7 +38,7 @@ int Set(int fd, StateMachine *sm, bool DEBUG){ //sm nao é utilizado
     }
     return 0;
 }
-int SendResponse(int fd, StateMachine* sm, unsigned char control_flag, bool DEBUG){ // sm nao é utilizado...
+int SendResponse(int fd, StateMachine_s* sm, unsigned char control_flag, bool DEBUG){ // sm nao é utilizado...
     
     char response[5];
     response[0] = FLAG;
@@ -57,7 +55,7 @@ int SendResponse(int fd, StateMachine* sm, unsigned char control_flag, bool DEBU
     return 0;
 }
 
-int UpdateState(unsigned char byte, StateMachine* sm, bool DEBUG){
+int UpdateState_s(unsigned char byte, StateMachine_s* sm, bool DEBUG){
 
     switch(sm->state){
 
@@ -202,7 +200,7 @@ int Send_Termination(int fd, bool DEBUG){
     return 0;
 }
 
-int ShortUpdateState(unsigned char byte, StateMachine* sm, bool DEBUG){
+int ShortUpdateState(unsigned char byte, StateMachine_s* sm, bool DEBUG){
 
     switch (sm->state)
     {
