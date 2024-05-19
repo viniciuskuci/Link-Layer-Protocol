@@ -1,4 +1,4 @@
-#include "reciever_sm.h"
+#include "reciever_sm_disc.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <unistd.h>
