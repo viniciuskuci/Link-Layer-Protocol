@@ -1,4 +1,4 @@
-#include "sender_sm.h"
+#include "sender_sm_disc.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
