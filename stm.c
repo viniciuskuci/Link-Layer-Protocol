@@ -347,10 +347,10 @@ int UpdateState(unsigned char byte, StateMachine *sm, unsigned char *file_buffer
                 {
                     if (sm->packet_rejected)
                     {
-                        //retransmitir aqui
                         sm->packet_rejected = false;
                         sm->state = START;
                         printf("BCC_OK -> START\n");
+                        return -1; //avisa llwrite para retransmitir
                     }
                     else if (sm->expected_frame == UA_frame)
                     {
