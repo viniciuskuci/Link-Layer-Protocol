@@ -85,6 +85,10 @@ int llwrite(unsigned char* buf, int bufSize){
         if (response == 1) {
             return 0; // Sucesso
         }
+         else if(response==-1){
+             write(sm.fd, frame, frameSize);
+             sleep(1);
+        }
     }
 
     free(frame);
