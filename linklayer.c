@@ -4,10 +4,11 @@
 #include <stdio.h>
 
 StateMachine sm;
-
+//int tries;
 
 int llopen(linkLayer connectionParameters) {
     struct termios oldtio, newtio;
+    //tries=connectionParameters->numTries;
     int fd = open(connectionParameters.serialPort, O_RDWR | O_NOCTTY);
     if (fd < 0) {
         perror(connectionParameters.serialPort);
@@ -68,7 +69,7 @@ int llopen(linkLayer connectionParameters) {
 }
 
 int llwrite(unsigned char* buf, int bufSize){
-    
+    int cont=0;
     int frameSize;
     unsigned char *frame = framing(buf, strlen(buf), &frameSize, sm.next_I_flag);
     if (frame == NULL || frameSize < 0) {
@@ -86,6 +87,8 @@ int llwrite(unsigned char* buf, int bufSize){
             return 0; // Sucesso
         }
          else if(response==-1){
+             //cont++;
+             //if(cont>=tries) return -1; //so tenta ate o numero maximo de tentativas
              write(sm.fd, frame, frameSize);
              sleep(1);
         }
