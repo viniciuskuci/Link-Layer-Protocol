@@ -75,18 +75,19 @@ int llwrite(unsigned char* buf, int bufSize){
         free(frame);
         return -1;
     }
+    for (int i = 0; i < frameSize; i++) {
+        printf("Frame[%d]: %x, %c\n", i, frame[i], frame[i]);
+    }
     write(sm.fd, frame, frameSize);
     unsigned char reply;
     while (read(sm.fd, &reply, 1) == 1) {
         int response = UpdateState(reply, &sm, NULL);
         if (response == 1) {
-            printf("Frame %s sent.\n", sm.next_I_flag == I0 ? "I0" : "I1");
             return 0; // Sucesso
         }
         else if(response==-1){
-            printf("Frame %s rejected. Retransmitting...\n", sm.next_I_flag == I0 ? "I0" : "I1");
-            write(sm.fd, frame, frameSize);
-            sleep(1);
+             write(sm.fd, frame, frameSize);
+             sleep(1);
         }
     }
 
@@ -95,71 +96,14 @@ int llwrite(unsigned char* buf, int bufSize){
 }
 
 int llread(unsigned char* packet){
-    unsigned char *buffer[MAX_PAYLOAD_SIZE*2];
     unsigned char reply;
     while (read(sm.fd, &reply, 1) == 1) {
-        int response = UpdateState(reply, &sm, buffer);
+        printf("Reply: %x, %c\n", reply, reply);
+        int response = UpdateState(reply, &sm, packet);
         if (response == 1) {
-            memcpy(packet, buffer, MAX_PAYLOAD_SIZE);
             return sm.bytes_downloaded; // Sucesso
         }
     }
 
     return -1; // Falha
-}
-llclose(linkLayer connectionParameters, int showStatistics){
-    
-    if(connectionParameters->role==0){
-        StateMachine_s smf = DiscStateMachine(); // cria uma state machine para receber disc do recetor
-
-
-    if (Send_Termination(fd, DEBUG) == -1){ // envia o disc ao recetor
-        perror("Disc"); 
-        exit(-1);
-    }
-    sleep(1);
-
-    while(read(fd,buf,1) == 1){
-        printf("Reading\n");  // le a resposta do receiver e depois envia ua... , falta a state machine para receber ambos
-        if(ShortUpdateState(buf[0], &smf,DEBUG)){
-            if (Set(fd, &sm, DEBUG) == -1){
-                perror("Ua"); 
-                exit(-1);
-                }
-        }
-    }
-    sleep(1);
-    }
-
-    else if(connectionParameters->role==1){ //colocar disc receiver
-         
-        STOP=FALSE;
-        StateMachine sm = NewStateMachine();
-        sm->expected_frame=DISC_frame;
-        while (STOP==FALSE) {       /* loop for input */
-        res = read(fd,buf,1);   /* returns after 5 chars have been input */  
-        if (res == -1){
-            perror("read");
-            exit(-1);
-        }
-        int sm_res;
-        sm_res = UpdateState(buf[0], &sm, fd, DEBUG);
-
-    }
-    }
-
-    else return -1;
-
-    if(showStatistics==TRUE){
-        printf("%d\n",connectionParameters->numTries);// estatistica?
-    }
-
-    if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
-        perror("tcsetattr");
-        exit(-1);
-    }
-
-    close(fd);
-
-    return 1;
 }
