@@ -379,3 +379,17 @@ int UpdateState(unsigned char byte, StateMachine *sm, unsigned char *file_buffer
         }
     }
 }
+
+int Send_Termination(int fd, bool DEBUG){
+
+    unsigned char disc[5];
+    disc[0] = FLAG;
+    disc[1] = ADDR_TRANSMITTER;
+    disc[2] = DISC;
+    disc[3] = ADDR_TRANSMITTER^DISC;
+    disc[4] = FLAG;
+    if (DEBUG) printf("DISC frame created %x %x %x %x %x\n", disc[0], disc[1], disc[2], disc[3], disc[4]);
+    if (write(fd, disc, 5) == -1){
+        perror("write");
+        return -1;
+    }
