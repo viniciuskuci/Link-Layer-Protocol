@@ -4,11 +4,10 @@
 #include <stdio.h>
 
 StateMachine sm;
-//int tries;
+
 
 int llopen(linkLayer connectionParameters) {
     struct termios oldtio, newtio;
-    //tries=connectionParameters->numTries;
     int fd = open(connectionParameters.serialPort, O_RDWR | O_NOCTTY);
     if (fd < 0) {
         perror(connectionParameters.serialPort);
@@ -69,28 +68,25 @@ int llopen(linkLayer connectionParameters) {
 }
 
 int llwrite(unsigned char* buf, int bufSize){
-    int cont=0;
+    
     int frameSize;
     unsigned char *frame = framing(buf, strlen(buf), &frameSize, sm.next_I_flag);
     if (frame == NULL || frameSize < 0) {
         free(frame);
         return -1;
     }
-    for (int i = 0; i < frameSize; i++) {
-        printf("Frame[%d]: %x, %c\n", i, frame[i], frame[i]);
-    }
     write(sm.fd, frame, frameSize);
     unsigned char reply;
     while (read(sm.fd, &reply, 1) == 1) {
         int response = UpdateState(reply, &sm, NULL);
         if (response == 1) {
+            printf("Frame %s sent.\n", sm.next_I_flag == I0 ? "I0" : "I1");
             return 0; // Sucesso
         }
-         else if(response==-1){
-             //cont++;
-             //if(cont>=tries) return -1; //so tenta ate o numero maximo de tentativas
-             write(sm.fd, frame, frameSize);
-             sleep(1);
+        else if(response==-1){
+            printf("Frame %s rejected. Retransmitting...\n", sm.next_I_flag == I0 ? "I0" : "I1");
+            write(sm.fd, frame, frameSize);
+            sleep(1);
         }
     }
 
@@ -99,11 +95,12 @@ int llwrite(unsigned char* buf, int bufSize){
 }
 
 int llread(unsigned char* packet){
+    unsigned char *buffer[MAX_PAYLOAD_SIZE*2];
     unsigned char reply;
     while (read(sm.fd, &reply, 1) == 1) {
-        printf("Reply: %x, %c\n", reply, reply);
-        int response = UpdateState(reply, &sm, packet);
+        int response = UpdateState(reply, &sm, buffer);
         if (response == 1) {
+            memcpy(packet, buffer, MAX_PAYLOAD_SIZE);
             return sm.bytes_downloaded; // Sucesso
         }
     }

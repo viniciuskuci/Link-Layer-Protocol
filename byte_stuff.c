@@ -8,7 +8,8 @@
 
 int check_bcc2(const unsigned char* buf, int bufSize) {
     unsigned char bcc2 = calculate_bcc2(buf, bufSize-1);
-    return bcc2 == buf[bufSize];
+    printf("BCC2 on buffer: %02x\n", buf[bufSize-1]);
+    return bcc2 == buf[bufSize-1];
 }
 
 unsigned char calculate_bcc2(const unsigned char* buf, int bufSize) {
@@ -16,7 +17,7 @@ unsigned char calculate_bcc2(const unsigned char* buf, int bufSize) {
     for (int i = 0; i < bufSize; i++) {
         bcc2 ^= buf[i];
     }
-    
+    printf("Calculated BCC2: %02x\n", bcc2);
     return bcc2;
 }
 
@@ -84,31 +85,18 @@ unsigned char* byte_destuff(const unsigned char* buf, int bufSize, int* destuffe
 }
 
 unsigned char* framing(const unsigned char* buf, int bufSize, int* framedSize, unsigned char control_field) {
-    // Calcula o BCC2 do buffer original
     unsigned char bcc2 = calculate_bcc2(buf, bufSize);
-    printf("Buffer original: ");
-    for (int i = 0; i < bufSize; i++) {
-        printf("%02x ", buf[i]);
-    }
-    // Aloca memória para o novo buffer com espaço para o BCC2
     unsigned char* to_stuff = (unsigned char*)malloc(bufSize + 1);
     if (to_stuff == NULL) {
         *framedSize = -1;
         return NULL;
     }
 
-    // Copia o buffer original para o novo buffer
     memcpy(to_stuff, buf, bufSize);
 
-    // Adiciona o BCC2 ao final do buffer
     to_stuff[bufSize] = bcc2;
 
-    // Byte stuff no buffer completo (com o BCC2)
-    printf("Buffer antes do byte stuffing: ");
-    for (int i = 0; i < bufSize; i++) {
-        printf("%02x ", to_stuff[i]);
-    }
-    printf("\n");
+   
     int stuffedSize;
     unsigned char* stuffedBuf = byte_stuff(to_stuff, bufSize + 1, &stuffedSize);
     if (stuffedBuf == NULL) {
@@ -116,12 +104,8 @@ unsigned char* framing(const unsigned char* buf, int bufSize, int* framedSize, u
         free(to_stuff);
         return NULL;
     }
-    printf("Buffer depois do byte stuffing: ");
-    for (int i = 0; i < stuffedSize; i++) {
-        printf("%02x ", stuffedBuf[i]);
-    }
-    // Aloca memória para o buffer do quadro
-    *framedSize = stuffedSize + 6; // 7 bytes para FLAG, ADDR, CONTROL, BCC2 e FLAG
+    
+    *framedSize = stuffedSize + 6; 
     unsigned char* framedBuf = (unsigned char*)malloc(*framedSize);
     if (framedBuf == NULL) {
         *framedSize = -1;
@@ -129,27 +113,22 @@ unsigned char* framing(const unsigned char* buf, int bufSize, int* framedSize, u
         return NULL;
     }
 
-    // Adiciona os cabeçalhos ao início do quadro
-    framedBuf[0] = FLAG; // Flag de início
-    framedBuf[1] = ADDR_TRANSMITTER; // Endereço do transmissor
-    framedBuf[2] = control_field; // Campo de controle
-    framedBuf[3] = ADDR_TRANSMITTER ^ control_field; // BCC1
-    framedBuf[4] = FLAG; // Flag de fim de cabeçalho
+    framedBuf[0] = FLAG; 
+    framedBuf[1] = ADDR_TRANSMITTER; 
+    framedBuf[2] = control_field; 
+    framedBuf[3] = ADDR_TRANSMITTER ^ control_field; 
+    framedBuf[4] = FLAG; 
 
-    // Copia o conteúdo do buffer "stuffed" para o quadro
     memcpy(framedBuf + 5, stuffedBuf, stuffedSize);
 
-    // Adiciona a tail ao final do quadro
-    framedBuf[*framedSize - 1] = FLAG; // Flag de fim
+    framedBuf[*framedSize - 1] = FLAG; 
 
-    // Libera a memória alocada para o buffer "stuffed"
     printf("Framed Frame: ");
     for (int i = 0; i < *framedSize; i++) {
-        printf("%02x ", framedBuf[i]);
+        printf("%c", framedBuf[i]);
     }
     printf("\n");
     free(stuffedBuf);
 
-    // Retorna o buffer do quadro
     return framedBuf;
 }

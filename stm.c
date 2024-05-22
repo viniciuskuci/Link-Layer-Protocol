@@ -212,7 +212,7 @@ int UpdateState(unsigned char byte, StateMachine *sm, unsigned char *file_buffer
                     }
                     else
                     {
-                        //bcc not ok. mandar reject
+                        SendResponse(sm, (sm->expected_I_flag == I0) ? REJ0 : REJ1, true);
                         sm->state = START;
                         printf("C_RCV -> START\n");
                     }
@@ -238,16 +238,21 @@ int UpdateState(unsigned char byte, StateMachine *sm, unsigned char *file_buffer
                 case SM_STOP:
                     if (byte == FLAG)
                     {   
-                        file_buffer[sm->bytes_downloaded] = '\0';
-                        printf("Recieved file buffer: %s\n", file_buffer);
                         int destuffed_size;
                         unsigned char* destuffed = byte_destuff(file_buffer, strlen(file_buffer), &destuffed_size);
-                        printf("Recieved file buffer destuffed: %s\n", destuffed);
                         
                         if (check_bcc2(destuffed, destuffed_size))
                         {
-                            
+                            destuffed[destuffed_size-1] = '\0';
+                            printf("Aqui\n");
+                            memset(file_buffer, 0, 1000);
+                            printf("Aqui\n");
+                            memcpy(file_buffer, destuffed, destuffed_size);
+                            file_buffer[destuffed_size-1] = '\0';
+                            sm->bytes_downloaded = destuffed_size-1;
+                            printf("Aqui\n");
                             SendResponse(sm, (sm->expected_I_flag == I0) ? RR1 : RR0, true);
+                            printf("Aqui\n");
                             sm->expected_I_flag = (sm->expected_I_flag == I0) ? I1 : I0;
                             sm->state = START;
                             printf("SM_STOP -> START\n");
@@ -350,7 +355,7 @@ int UpdateState(unsigned char byte, StateMachine *sm, unsigned char *file_buffer
                         sm->packet_rejected = false;
                         sm->state = START;
                         printf("BCC_OK -> START\n");
-                        return -1; //avisa llwrite para retransmitir
+                        return -1;
                     }
                     else if (sm->expected_frame == UA_frame)
                     {
@@ -366,6 +371,7 @@ int UpdateState(unsigned char byte, StateMachine *sm, unsigned char *file_buffer
                         sm->next_I_flag = (sm->next_I_flag == I0) ? I1 : I0;
                         sm->state = START;
                         printf("BCC_OK -> START\n");
+                        return 1;
                     }
                 }
                 else sm->state = START;
