@@ -1,6 +1,7 @@
-compile: read write
-read: readnoncanonical.c
-	gcc -o app app.c linklayer.c stm.c byte_stuff.c
+compile: app
+app: app.c
+	gcc -o app app.c stm.c byte_stuff.c linklayer.c
 clean:
 	rm -f app
-
+cable:
+	gcc -o cable cable.c

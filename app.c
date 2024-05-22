@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
             }
         }
         
-        sleep(10);
+        sleep(1);
         //llclose(ll,1);
         close(file_desc);
         return 0;

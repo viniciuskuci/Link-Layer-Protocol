@@ -68,26 +68,32 @@ int llopen(linkLayer connectionParameters) {
 }
 
 int llwrite(unsigned char* buf, int bufSize){
-    
+    if(bufSize <= 1){
+        return 0;
+    }
+    buf[bufSize] = '\0';
+    printf("\n\n");
+    printf("buffer from app: %s\n", buf);
+    printf("\n\n");
     int frameSize;
     unsigned char *frame = framing(buf, strlen(buf), &frameSize, sm.next_I_flag);
     if (frame == NULL || frameSize < 0) {
         free(frame);
         return -1;
     }
-    for (int i = 0; i < frameSize; i++) {
-        printf("Frame[%d]: %x, %c\n", i, frame[i], frame[i]);
-    }
     write(sm.fd, frame, frameSize);
+    printf("Frame %s sent.\n", sm.next_I_flag == I0 ? "I0" : "I1");
     unsigned char reply;
     while (read(sm.fd, &reply, 1) == 1) {
         int response = UpdateState(reply, &sm, NULL);
         if (response == 1) {
+            memset(buf, 0, MAX_PAYLOAD_SIZE);
             return 0; // Sucesso
         }
         else if(response==-1){
-             write(sm.fd, frame, frameSize);
-             sleep(1);
+            printf("Frame %s rejected. Retransmitting...\n", sm.next_I_flag == I0 ? "I0" : "I1");
+            write(sm.fd, frame, frameSize);
+            sleep(1);
         }
     }
 
@@ -96,14 +102,19 @@ int llwrite(unsigned char* buf, int bufSize){
 }
 
 int llread(unsigned char* packet){
+    unsigned char *buffer[MAX_PAYLOAD_SIZE*2];
     unsigned char reply;
     while (read(sm.fd, &reply, 1) == 1) {
-        printf("Reply: %x, %c\n", reply, reply);
-        int response = UpdateState(reply, &sm, packet);
+        int response = UpdateState(reply, &sm, buffer);
         if (response == 1) {
+            memcpy(packet, buffer, MAX_PAYLOAD_SIZE);
+            memset(buffer, 0, MAX_PAYLOAD_SIZE*2);
+            if (sm.bytes_downloaded == -1) {
+                return 0;
+            }
             return sm.bytes_downloaded; // Sucesso
         }
     }
 
-    return -1; // Falha
+    return 0; // Falha
 }

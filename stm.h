@@ -62,25 +62,4 @@ StateMachine NewStateMachine(int role, int fd);
 int Set(int fd, bool DEBUG);
 int SendResponse(StateMachine* sm, unsigned char control_flag, bool DEBUG);
 int UpdateState(unsigned char byte, StateMachine* sm, unsigned char* file_buffer);
-int Send_Termination(int fd, bool DEBUG);
 
-/*
- *  @brief Updates the state of the disc state machine according to the recieved byte. 
-    *  @param  byte: recieved byte
-    *  @param  *sm: reference to the state machine
-    *  @param  DEBUG: flag to print debug messages
-    *  @return -2 if a wrong bcc is recieved.
-    *          -1 if the recieved byte is garbage.
-    *          0 if the state machine updated its state successfuly.
-    *          1 if the state machine is ready to send UA.           
- */
-int ShortUpdateState(unsigned char byte, StateMachine_s* sm, bool DEBUG);
-
-/*
- *  @brief Ends the communication to reciever sending a UA frame. 
-    *  @param  fd: file descriptor of the serial port
-    *  @param  DEBUG: flag to print debug messages
-    *  @return -1 if the state machine could not be started.
-    *          0 if the state machine was started successfuly.
- */
-int Ua(int fd, bool DEBUG);
